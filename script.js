@@ -307,9 +307,17 @@ function saveCardToURL() {
 
     // Use try-catch for encoding safety
     try {
-        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-        // URL-encode the Base64 string to handle +, /, = correctly
-        window.shareURL = window.location.origin + window.location.pathname + '?card=' + encodeURIComponent(encoded);
+        let encoded;
+        // Try compression if library loaded
+        if (typeof LZString !== 'undefined') {
+            encoded = LZString.compressToEncodedURIComponent(JSON.stringify(data));
+            // LZString is already URL safe, no need to encodeURIComponent
+            window.shareURL = window.location.origin + window.location.pathname + '?card=' + encoded;
+        } else {
+            // Legacy Base64 fallback
+            encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+            window.shareURL = window.location.origin + window.location.pathname + '?card=' + encodeURIComponent(encoded);
+        }
     } catch (e) {
         console.error('URL generation failed:', e);
         showToast('⚠ ข้อความยาวเกินไป อาจแชร์ไม่ได้');
@@ -321,11 +329,34 @@ function loadCardFromURL() {
     let cardData = params.get('card');
     if (!cardData) return false;
 
-    // Fix for unencoded + becoming space
-    cardData = cardData.replace(/ /g, '+');
+    let data = null;
+
+    // Try Decompress (LZString)
+    try {
+        if (typeof LZString !== 'undefined') {
+            const decompressed = LZString.decompressFromEncodedURIComponent(cardData);
+            if (decompressed) {
+                data = JSON.parse(decompressed);
+            }
+        }
+    } catch (e) {
+        // Not compressed or invalid
+    }
+
+    // Fallback to Legacy Base64 if detection failed
+    if (!data) {
+        try {
+            // Fix spaces for legacy base64
+            const fixed = cardData.replace(/ /g, '+');
+            data = JSON.parse(decodeURIComponent(escape(atob(fixed))));
+        } catch (e) {
+            console.error('Failed to parse card data:', e);
+            showToast('⚠ ไม่สามารถโหลดการ์ดได้ (ลิงก์อาจผิดพลาด)');
+            return false;
+        }
+    }
 
     try {
-        const data = JSON.parse(decodeURIComponent(escape(atob(cardData))));
         state.theme = data.t || 'romantic';
         state.sender = data.s || 'ผู้แอบรัก';
         state.recipient = data.r || 'คนพิเศษ';

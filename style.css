@@ -2043,13 +2043,19 @@ body.gloom-mode .blob-3 {
         padding: 0 16px;
     }
 
+    .create-wrapper {
+        padding: 16px;
+    }
+
     .hero-visual {
-        width: 260px;
+        width: 100%;
+        max-width: 260px;
         height: 340px;
     }
 
     .stack-card {
-        width: 200px;
+        width: 100%;
+        max-width: 200px;
         height: 270px;
     }
 
@@ -2082,10 +2088,56 @@ body.gloom-mode .blob-3 {
         flex-direction: column;
         gap: 12px;
     }
+
+    .modal-card {
+        width: 90%;
+        padding: 24px;
+    }
+
+    .modal-icon {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .card-stage {
+        width: 100%;
+        max-width: 260px;
+        height: 360px;
+    }
+
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .btn-hero-text {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+    }
 }
 
 /* Viewer Mode (Received Card) */
 body.viewer-mode .btn-share,
 body.viewer-mode .preview-header {
     display: none;
+}
+
+/* Global Responsive Fixes */
+html,
+body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+img,
+svg,
+canvas {
+    max-width: 100%;
+}
+
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
 }
