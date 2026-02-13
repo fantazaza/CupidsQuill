@@ -289,16 +289,30 @@ document.addEventListener('click', (e) => {
 });
 
 // ===== URL Sharing =====
+// ===== URL Sharing =====
 function saveCardToURL() {
     const data = {
-        t: state.theme,
-        s: state.sender,
-        r: state.recipient,
-        m: state.message,
-        h: state.messageHtml
+        t: state.theme
     };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    window.shareURL = window.location.origin + window.location.pathname + '?card=' + encoded;
+    // Optimize: Only save if changed from default
+    if (state.sender && state.sender !== 'ผู้แอบรัก') data.s = state.sender;
+    if (state.recipient && state.recipient !== 'คนพิเศษ') data.r = state.recipient;
+    
+    // Optimize: Prefer HTML, only save one version
+    if (state.messageHtml && state.messageHtml !== 'รักนะ...') {
+        data.h = state.messageHtml;
+    } else if (state.message && state.message !== 'รักนะ...') {
+        data.m = state.message;
+    }
+
+    // Use try-catch for encoding safety
+    try {
+        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+        window.shareURL = window.location.origin + window.location.pathname + '?card=' + encoded;
+    } catch (e) {
+        console.error('URL generation failed:', e);
+        showToast('⚠ ข้อความยาวเกินไป อาจแชร์ไม่ได้');
+    }
 }
 
 function loadCardFromURL() {
@@ -311,9 +325,19 @@ function loadCardFromURL() {
         state.theme = data.t || 'romantic';
         state.sender = data.s || 'ผู้แอบรัก';
         state.recipient = data.r || 'คนพิเศษ';
-        state.message = data.m || 'รักนะ...';
-        state.messageHtml = data.h || state.message;
         
+        // Handle optimized message data
+        if (data.h) {
+            state.messageHtml = data.h;
+            // Create plain text approximation for compatibility
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.h;
+            state.message = tempDiv.innerText;
+        } else {
+            state.message = data.m || 'รักนะ...';
+            state.messageHtml = state.message.replace(/\n/g, '<br>');
+        }
+
         const card = document.getElementById('loveCard');
         const wrapper = document.getElementById('cardWrapper');
 
@@ -325,7 +349,6 @@ function loadCardFromURL() {
             cute: "'Charm', cursive",
             elegant: "'Cormorant Garamond', serif",
             playful: "'Noto Sans Thai', 'Sarabun', sans-serif",
-            minimal: "'Noto Sans Thai', 'Sarabun', sans-serif",
             night: "'Charm', cursive",
         };
         card.style.fontFamily = themeFont[state.theme] || "'Charm', cursive";
