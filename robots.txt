@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://cupids-quill.web.app/sitemap.xml

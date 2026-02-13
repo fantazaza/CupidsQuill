@@ -1,0 +1,21 @@
+{
+  "name": "Cupid's Quill",
+  "short_name": "CupidCard",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a0008",
+  "theme_color": "#1a0008",
+  "description": "Create premium interactive Valentine's cards.",
+  "icons": [
+    {
+      "src": "og.PNG",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "og.PNG",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
