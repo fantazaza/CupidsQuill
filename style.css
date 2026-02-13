@@ -93,6 +93,8 @@
 html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
+    overflow-y: auto;
+    /* Ensure vertical scrolling */
 }
 
 body {
@@ -100,9 +102,13 @@ body {
     background: var(--bg);
     color: var(--text-primary);
     min-height: 100vh;
+    min-height: 100dvh;
+    /* Improved mobile viewport support */
     overflow-x: hidden;
     line-height: 1.6;
     transition: background-color 0.8s ease;
+    -webkit-tap-highlight-color: transparent;
+    /* Remove tap highlight on mobile */
 }
 
 /* Theme flash animation */
@@ -228,8 +234,11 @@ body.gloom-mode .blob-3 {
 .page {
     display: none;
     min-height: 100vh;
+    min-height: 100dvh;
     position: relative;
     z-index: 1;
+    padding-bottom: 40px;
+    /* Safe area for scrolling */
 }
 
 .page.active {
@@ -364,7 +373,7 @@ body.gloom-mode .blob-3 {
     gap: 60px;
     align-items: center;
     padding: 60px 0 40px;
-    min-height: calc(100vh - 180px);
+    min-height: calc(100dvh - 180px);
 }
 
 .hero-badge {
