@@ -308,7 +308,8 @@ function saveCardToURL() {
     // Use try-catch for encoding safety
     try {
         const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-        window.shareURL = window.location.origin + window.location.pathname + '?card=' + encoded;
+        // URL-encode the Base64 string to handle +, /, = correctly
+        window.shareURL = window.location.origin + window.location.pathname + '?card=' + encodeURIComponent(encoded);
     } catch (e) {
         console.error('URL generation failed:', e);
         showToast('⚠ ข้อความยาวเกินไป อาจแชร์ไม่ได้');
@@ -317,8 +318,11 @@ function saveCardToURL() {
 
 function loadCardFromURL() {
     const params = new URLSearchParams(window.location.search);
-    const cardData = params.get('card');
+    let cardData = params.get('card');
     if (!cardData) return false;
+
+    // Fix for unencoded + becoming space
+    cardData = cardData.replace(/ /g, '+');
 
     try {
         const data = JSON.parse(decodeURIComponent(escape(atob(cardData))));
