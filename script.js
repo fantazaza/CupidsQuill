@@ -27,7 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initParticles();
 
     // Check URL for shared card
-    loadCardFromURL();
+    if (!loadCardFromURL()) {
+        applyThemeVisuals('romantic');
+    }
 
     // ESC to close modal
     document.addEventListener('keydown', (e) => {
@@ -285,7 +287,20 @@ function generateCard() {
 // ===== Card Flip =====
 document.addEventListener('click', (e) => {
     const card = e.target.closest('.card-3d');
-    if (card) card.classList.toggle('flipped');
+    if (card) {
+        card.classList.toggle('flipped');
+        
+        // Show response buttons if recipient opens card
+        if (document.body.classList.contains('viewer-mode') && card.classList.contains('flipped')) {
+            const resp = document.querySelector('.response-section');
+            if (resp && !resp.classList.contains('visible')) {
+                setTimeout(() => {
+                    resp.classList.add('visible');
+                    resp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 800);
+            }
+        }
+    }
 });
 
 // ===== URL Sharing =====
@@ -304,6 +319,9 @@ function saveCardToURL() {
     } else if (state.message && state.message !== 'รักนะ...') {
         data.m = state.message;
     }
+    
+    // Include answer if exists
+    if (state.answer) data.a = state.answer;
 
     // Use try-catch for encoding safety
     try {
@@ -360,6 +378,7 @@ function loadCardFromURL() {
         state.theme = data.t || 'romantic';
         state.sender = data.s || 'ผู้แอบรัก';
         state.recipient = data.r || 'คนพิเศษ';
+        if (data.a) state.answer = data.a;
         
         // Handle optimized message data
         if (data.h) {
@@ -414,6 +433,18 @@ function loadCardFromURL() {
         }
 
         navigateTo('preview');
+
+        if (state.answer) {
+             document.querySelector('.response-section').classList.add('visible');
+        }
+
+        // If answer exists, show result immediately (without Reply button)
+        if (state.answer === 'yes') {
+            setTimeout(() => sayYes(false), 500);
+        } else if (state.answer === 'no') {
+            setTimeout(() => sayNo(false), 500);
+        }
+
         return true;
     } catch (e) {
         console.error('Failed to load card:', e);
@@ -423,11 +454,39 @@ function loadCardFromURL() {
 }
 
 // ===== Share =====
-function shareCard() {
+// ===== Share =====
+async function shareCard() {
     if (!window.shareURL) saveCardToURL();
-    document.getElementById('shareLink').value = window.shareURL;
-    document.getElementById('shareModal').classList.add('active');
-    document.getElementById('copyStatus').textContent = '';
+    
+    const modal = document.getElementById('shareModal');
+    const input = document.getElementById('shareLink');
+    const copyStatus = document.getElementById('copyStatus');
+    
+    modal.classList.add('active');
+    copyStatus.textContent = '';
+    
+    // Check if we should try to shorten (HTTP/S only, long URL)
+    const longURL = window.shareURL;
+    if (longURL.startsWith('http') && longURL.length > 50 && !longURL.includes('tinyurl.com')) {
+        input.value = 'กำลังสร้าง Short Link...';
+        
+        try {
+            const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longURL)}`);
+            if (response.ok) {
+                const short = await response.text();
+                if (short.startsWith('http')) {
+                    window.shareURL = short; // Cache it
+                    input.value = short;
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Short link failed, utilizing long URL');
+        }
+    }
+    
+    // Fallback or already short
+    input.value = window.shareURL;
 }
 
 function closeShareModal() {
@@ -454,119 +513,8 @@ function copyLink() {
 
 
 // ===== Download =====
-function downloadCard() {
-    showToast('… กำลังสร้างรูปภาพ...');
+// ===== Download =====
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const W = 680, H = 960;
-    canvas.width = W;
-    canvas.height = H;
-
-    const themes = {
-        romantic: { bg1: '#cc0033', bg2: '#ff1a4b', frontText: '#fff', back: '#fff0f3', backText: '#4a0011' },
-        cute: { bg1: '#ff69b4', bg2: '#ff9ecf', frontText: '#fff', back: '#fff5f8', backText: '#6b1d42' },
-        elegant: { bg1: '#2a004e', bg2: '#7b00cc', frontText: '#e8e0f0', back: '#f0ecf5', backText: '#1a0033' },
-        playful: { bg1: '#ffd700', bg2: '#ffb300', frontText: '#333', back: '#fffde8', backText: '#4a3800' },
-        // minimal removed
-        night: { bg1: '#1a0040', bg2: '#3b0080', frontText: '#e8e0ff', back: '#0f0028', backText: '#d4c8ff' },
-    };
-    const c = themes[state.theme] || themes.romantic;
-
-    // Draw rounded rect helper
-    function roundRect(x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        ctx.lineTo(x + r, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
-    }
-
-    // Background
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, c.back);
-    bgGrad.addColorStop(1, c.back);
-    roundRect(0, 0, W, H, 40);
-    ctx.fillStyle = bgGrad;
-    ctx.fill();
-
-    // Header bar
-    const headGrad = ctx.createLinearGradient(0, 0, W, 0);
-    headGrad.addColorStop(0, c.bg1);
-    headGrad.addColorStop(1, c.bg2);
-    roundRect(0, 0, W, 70, 40);
-    ctx.fillStyle = headGrad;
-    ctx.fill();
-    // Fix bottom corners of header
-    ctx.fillRect(0, 30, W, 40);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = "italic 22px 'Cormorant Garamond', serif";
-    ctx.textAlign = 'center';
-    ctx.fillText("Cupid's Quill", W / 2, 46);
-
-    // Dear
-    ctx.fillStyle = c.backText;
-    ctx.font = "600 26px 'Noto Sans Thai', 'Sarabun', sans-serif";
-    ctx.textAlign = 'left';
-    ctx.fillText(`ถึง ${state.recipient} ที่รัก,`, 55, 130);
-
-    // Message
-    ctx.font = "400 22px 'Noto Sans Thai', 'Sarabun', sans-serif";
-    const lines = wrapText(ctx, state.message, W - 110);
-    let y = 190;
-    lines.forEach(line => {
-        ctx.fillText(line, 55, y);
-        y += 38;
-    });
-
-    // From
-    ctx.fillStyle = c.backText;
-    ctx.font = "500 22px 'Noto Sans Thai', 'Sarabun', sans-serif";
-    ctx.textAlign = 'right';
-    ctx.fillText('ด้วยรักและคิดถึง,', W - 55, H - 120);
-    ctx.font = "700 24px 'Noto Sans Thai', 'Sarabun', sans-serif";
-    ctx.fillText(`${state.sender}`, W - 55, H - 82);
-
-    // Footer
-    ctx.textAlign = 'center';
-    ctx.font = "400 16px 'Noto Sans Thai', sans-serif";
-    ctx.fillStyle = c.backText + '66';
-    ctx.fillText("Valentine's Day 2026  \u2661  Cupid's Quill", W / 2, H - 28);
-
-    // Download
-    const link = document.createElement('a');
-    link.download = 'cupids-quill-valentine.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast('✓ บันทึกการ์ดเรียบร้อยแล้ว!');
-}
-
-function wrapText(ctx, text, maxW) {
-    const paragraphs = text.split('\n');
-    const lines = [];
-    for (const para of paragraphs) {
-        if (para === '') { lines.push(''); continue; }
-        let current = '';
-        for (const ch of para) {
-            const test = current + ch;
-            if (ctx.measureText(test).width > maxW && current) {
-                lines.push(current);
-                current = ch;
-            } else {
-                current = test;
-            }
-        }
-        if (current) lines.push(current);
-    }
-    return lines;
-}
 
 // ===== Toast =====
 function showToast(msg) {
@@ -627,7 +575,22 @@ function runAway(btn) {
     }
 }
 
-function sayYes() {
+function sayYes(showReplyBtn = true) {
+    state.answer = 'yes';
+    saveCardToURL();
+    
+    // Update share button to "Send Reply"
+    if (showReplyBtn) {
+        const shareBtn = document.querySelector('.btn-share');
+        if (shareBtn) {
+            shareBtn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            ส่งคำตอบกลับ`;
+        }
+    }
+
     const section = document.getElementById('responseSection');
     const btnsDiv = section.querySelector('.response-buttons');
     const result = document.getElementById('responseResult');
@@ -641,15 +604,21 @@ function sayYes() {
         btnsDiv.style.display = 'none';
         question.style.display = 'none';
 
+        let btnHtml = '';
+        if (showReplyBtn) {
+            btnHtml = `<button class="btn-share-reply" onclick="shareCard()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+                ส่งคำตอบกลับ
+            </button>`;
+        }
+
         result.innerHTML = `
-            <div class="result-text">🎆 ยินดีด้วย! เราเป็นของกันและกันแล้ว 🎆</div>
-            <div class="result-hearts">
-                <span style="animation-delay:0s">♡</span>
-                <span style="animation-delay:0.1s">♡</span>
-                <span style="animation-delay:0.2s">♡</span>
-                <span style="animation-delay:0.3s">♡</span>
-                <span style="animation-delay:0.4s">♡</span>
-            </div>
+            <div class="result-text">ยินดีด้วย! เราเป็นของกันและกันแล้ว</div>
+            ${btnHtml}
         `;
 
         document.body.classList.add('celebration-mode');
@@ -657,7 +626,22 @@ function sayYes() {
     }, 350);
 }
 
-function sayNo() {
+function sayNo(showReplyBtn = true) {
+    state.answer = 'no';
+    saveCardToURL();
+
+    // Update share button to "Send Reply"
+    if (showReplyBtn) {
+        const shareBtn = document.querySelector('.btn-share');
+        if (shareBtn) {
+            shareBtn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            ส่งคำตอบกลับ`;
+        }
+    }
+
     const section = document.getElementById('responseSection');
     const btnsDiv = section.querySelector('.response-buttons');
     const result = document.getElementById('responseResult');
@@ -671,13 +655,21 @@ function sayNo() {
         btnsDiv.style.display = 'none';
         question.style.display = 'none';
 
+        let btnHtml = '';
+        if (showReplyBtn) {
+            btnHtml = `<button class="btn-share-reply" onclick="shareCard()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+                ส่งคำตอบกลับ
+            </button>`;
+        }
+
         result.innerHTML = `
-            <div class="result-text" style="color:#8ac">🌧️ เสียใจด้วย... บางทีเวลาอาจเปลี่ยนใจ 🌧️</div>
-            <div class="result-hearts">
-                <span style="animation-delay:0s;color:#8ac">💧</span>
-                <span style="animation-delay:0.15s;color:#8ac">💧</span>
-                <span style="animation-delay:0.3s;color:#8ac">💧</span>
-            </div>
+            <div class="result-text" style="color:#b8adb1;">ไม่เป็นไร... ขอบคุณที่รับฟังนะ</div>
+            ${btnHtml}
         `;
 
         document.body.classList.add('gloom-mode');
@@ -870,7 +862,7 @@ function launchRain() {
         }
 
         // Update drops
-        ctx.strokeStyle = 'rgba(173, 216, 230, 0.5)';
+        ctx.strokeStyle = 'rgba(160, 140, 150, 0.4)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         for(let i=drops.length-1; i>=0; i--) {
@@ -1046,4 +1038,32 @@ function initParticles() {
         requestAnimationFrame(loop);
     }
     loop();
+}
+
+// ===== Donate Modal =====
+function openDonateModal() {
+    const modal = document.getElementById('donateModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeDonateModal() {
+    const modal = document.getElementById('donateModal');
+    if (modal) modal.classList.remove('active');
+}
+
+// Close on overlay click
+const donateModal = document.getElementById('donateModal');
+if (donateModal) {
+    donateModal.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeDonateModal();
+    });
+}
+
+// ===== Back Button Logic =====
+function handleBack() {
+    if (state.currentStep === 2) {
+        goToStep(1);
+    } else {
+        navigateTo('landing');
+    }
 }
