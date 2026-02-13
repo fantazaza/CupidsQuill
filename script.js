@@ -295,6 +295,7 @@ function saveCardToURL() {
         s: state.sender,
         r: state.recipient,
         m: state.message,
+        h: state.messageHtml
     };
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     window.shareURL = window.location.origin + window.location.pathname + '?card=' + encoded;
@@ -311,7 +312,8 @@ function loadCardFromURL() {
         state.sender = data.s || 'ผู้แอบรัก';
         state.recipient = data.r || 'คนพิเศษ';
         state.message = data.m || 'รักนะ...';
-
+        state.messageHtml = data.h || state.message;
+        
         const card = document.getElementById('loveCard');
         const wrapper = document.getElementById('cardWrapper');
 
@@ -330,12 +332,15 @@ function loadCardFromURL() {
 
         document.getElementById('cardTo').textContent = `ถึง ${state.recipient} ♡`;
         document.getElementById('cardDear').textContent = `ถึง ${state.recipient} ที่รัก,`;
-        document.getElementById('cardMessage').textContent = state.message;
+        document.getElementById('cardMessage').innerHTML = state.messageHtml;
         document.getElementById('cardFrom').textContent = `ด้วยรักและคิดถึง,\n${state.sender}`;
 
         card.classList.remove('flipped');
         window.shareURL = window.location.href;
         
+        // Apply theme visuals (bg, particles)
+        applyThemeVisuals(state.theme);
+
         // viewer mode UI
         document.body.classList.add('viewer-mode');
         const homeBtn = document.querySelector('.btn-home');
@@ -346,7 +351,7 @@ function loadCardFromURL() {
                 </svg>
                 สร้างการ์ดของคุณเอง`;
             homeBtn.onclick = () => {
-                window.location.href = window.location.pathname;
+                window.location.href = window.location.pathname; // Reload clear
             }
         }
 
@@ -354,6 +359,7 @@ function loadCardFromURL() {
         return true;
     } catch (e) {
         console.error('Failed to load card:', e);
+        showToast('⚠ ไม่สามารถโหลดการ์ดได้ (ลิงก์อาจผิดพลาด)');
         return false;
     }
 }
